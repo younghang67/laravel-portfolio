@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Note\StoreRequest;
+use App\Http\Requests\Note\UpdateRequest;
 use App\Models\Notes;
 use Illuminate\Http\Request;
+use Laravel\Prompts\Note;
 use PHPUnit\Framework\MockObject\Stub\ReturnStub;
 
 use function PHPUnit\Framework\returnCallback;
@@ -15,8 +18,10 @@ class NotesController extends Controller
      */
     public function index()
     {
-        //
-        return view('notes.index');
+
+        $notes = auth()->user()->notes()->latest()->get();
+
+        return view('notes.index', compact('notes'));
     }
 
     /**
@@ -30,10 +35,14 @@ class NotesController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreRequest $request)
     {
+        $data = $request->validated();
+        $data['user_id'] = auth()->id();
 
+        Notes::create($data);
 
+        return redirect()->route('notes.index')->with('success', 'Note Created Successfully');
     }
 
     /**
@@ -49,15 +58,21 @@ class NotesController extends Controller
      */
     public function edit(Notes $notes)
     {
-        //
+        if ($notes->user_id !== auth()->id()) {
+            abort(403);
+        }
+        return view('notes.edit', compact('notes'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Notes $notes)
+    public function update(UpdateRequest $request, Notes $notes)
     {
-        //
+        abort_if($notes->user_id !== auth()->id(), 403);
+        $validated = $request->validated();
+        $notes->update($validated);
+        return redirect()->route('notes.index')->with('success', 'Note Updated Successfully');
     }
 
     /**
@@ -65,6 +80,11 @@ class NotesController extends Controller
      */
     public function destroy(Notes $notes)
     {
-        //
+        if ($notes->user_id !== auth()->id()) {
+            abort(403);
+        }
+        $notes->delete();
+
+        return redirect()->route('notes.index')->with('success', 'Note Deleted Successfully');
     }
 }
